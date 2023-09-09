@@ -55,6 +55,41 @@ const loginUserCtrl = asyncHandler(async (req, res) => {
     }
 })
 
+// login admin
+const loginAdmin = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    // find user in db
+    const findAdmin = await User.findOne({ email: email });
+    if (findAdmin.role !== 'admin') throw new Error('You are not admin')
+    if (findAdmin && await findAdmin.isPasswordMatched(password)) {
+        const refreshToken = await generateRefreshToken(findAdmin?._id);
+        const updateAdmin = await User.findByIdAndUpdate(
+            findAdmin.id,
+            {
+                refreshToken: refreshToken,
+            },
+            {
+                new: true,
+            }
+        )
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            maxAge: 10 * 24 * 60 * 60 * 1000,
+        });
+        res.json({
+            _id: findAdmin?._id,
+            firstname: findAdmin?.firstname,
+            lastname: findAdmin?.lastname,
+            email: findAdmin?.email,
+            mobile: findAdmin?.mobile,
+            token: generateToken(findAdmin?._id)
+
+        });
+    } else {
+        throw new Error('Invalid email or password');
+    }
+})
+
 // handle refresh token
 const handleRefreshToken = asyncHandler(async (req, res) => {
     const cookie = req.cookies;
@@ -109,6 +144,21 @@ const updateaUser = asyncHandler(async (req, res) => {
             lastname: req?.body.lastname,
             email: req?.body.email,
             mobile: req?.body.mobile,
+        }, { new: true });
+        res.json({ updateaUser });
+    } catch (error) {
+        throw new Error('Error in updating user');
+    }
+})
+
+// save user address
+const saveAddress = asyncHandler(async (req, res, next) => {
+    const { _id } = req.user;
+    validateMongodbId(_id);
+
+    try {
+        const updateaUser = await User.findByIdAndUpdate(_id, {
+            address: req?.body.address,
         }, { new: true });
         res.json({ updateaUser });
     } catch (error) {
@@ -231,5 +281,17 @@ const resetPassword = asyncHandler(async (req, res) => {
     res.json({ user, message: "Password reset successfully" });
 });
 
+const getWishlist = asyncHandler(async (req, res) => {
+    const { _id } = req.user;
+    validateMongodbId(_id);
+    try {
+        const user = await User.findById(_id).populate('wishlist');
+        res.json(user.wishlist);
+    } catch (error) {
+        throw new Error(error);
+    }
 
-module.exports = { createUser, loginUserCtrl, getAllUsers, getAUser, deleteAUser, updateaUser, blockUser, unblockUser, handleRefreshToken, logout, updatePassword, forgotPasswordToken, resetPassword };
+});
+
+
+module.exports = { createUser, loginUserCtrl, loginAdmin, getAllUsers, getAUser, deleteAUser, updateaUser, blockUser, unblockUser, handleRefreshToken, logout, updatePassword, forgotPasswordToken, resetPassword, getWishlist, saveAddress };
