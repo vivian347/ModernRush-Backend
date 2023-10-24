@@ -48,7 +48,7 @@ const updateBrand = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Delete a category
+// @desc    Delete a categor
 const deleteBrand = asyncHandler(async (req, res) => {
     const id = req.params.id;
     validateMongodbId(id);
